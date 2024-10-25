@@ -2,9 +2,7 @@ import logging
 import requests
 from telegram.ext import Application, MessageHandler, filters
 from bs4 import BeautifulSoup
-import openai
 import base64
-import asyncio
 
 # 1. Thiết lập OpenAI và Telegram token
 TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
@@ -28,16 +26,10 @@ def extract_article_content(url):
     paragraphs = soup.find_all('p')
     article_content = '\n'.join([p.get_text() for p in paragraphs[:5]])  # Giới hạn 5 đoạn đầu
     
-    images = soup.find_all('img')
-    image_urls = [img.get('src') for img in images[:3]]  # Lấy tối đa 3 ảnh
-    
     return {
         'title': title,
-        'content': article_content,
-        'image_urls': image_urls
+        'content': article_content
     }
-
-# 3. Phân tích với OpenAI GPT
 
 # 4. Đăng bài lên WordPress
 def create_wordpress_post(title, content, wordpress_url, wp_user, wp_password):
@@ -66,11 +58,11 @@ async def handle_message(update, context):
         if article_data is None:
             await update.message.reply_text("Không thể lấy nội dung bài viết.")
             return
-        wordpress_url = 'https://ibpd.com.vn/'
+        wordpress_url = 'https://ibpd.com.vn'
         wp_user = 'pv02'
         wp_password = '6xA7 gAZB UcCu fisx fuAA 4de0T'
         
-        new_post = create_wordpress_post(article_data['title'], wordpress_url, wp_user, wp_password)
+        new_post = create_wordpress_post(article_data['title'], article_data['content'], wordpress_url, wp_user, wp_password)
         if new_post is None:
             await update.message.reply_text("Đăng bài lên WordPress không thành công.")
         else:
@@ -86,4 +78,3 @@ def main():
 
 if __name__ == '__main__':
     main()  # Gọi hàm main mà không cần asyncio.run
-
