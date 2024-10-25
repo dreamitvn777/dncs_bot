@@ -84,8 +84,8 @@ async def handle_message(update, context):
         gpt_analysis = await analyze_with_gpt(article_data['content'])
         
         wordpress_url = 'https://doanhnghiepchinhsach.vn/'
-        wp_user = 'pv01'
-        wp_password = 'cK3UqQ5MhNt0fGq0mjiDpB4C'
+        wp_user = 'dncs_user'
+        wp_password = 'bk0Nw7MBvX)B@blmxsM4zrOI'
         
         new_post = create_wordpress_post(article_data['title'], gpt_analysis, wordpress_url, wp_user, wp_password)
         if new_post is None:
