@@ -87,7 +87,7 @@ async def handle_message(update, context):
         wp_user = 'pv02'
         wp_password = '6xA7 gAZB UcCu fisx fuAA 4de0T'
         
-        new_post = create_wordpress_post(article_data['title'], gpt_analysis, wordpress_url, wp_user, wp_password)
+        new_post = create_wordpress_post(article_data['title'], wordpress_url, wp_user, wp_password)
         if new_post is None:
             await update.message.reply_text("Đăng bài lên WordPress không thành công.")
         else:
