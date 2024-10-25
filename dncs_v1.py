@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import base64
 
 # 1. Thiết lập OpenAI và Telegram token
-TELEGRAM_TOKEN = 'YOUR_TELEGRAM_TOKEN'  # Thay bằng token của bot Telegram
+TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'  # Thay bằng token của bot Telegram
 
 # Thiết lập logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
