@@ -66,9 +66,6 @@ async def handle_message(update, context):
         if article_data is None:
             await update.message.reply_text("Không thể lấy nội dung bài viết.")
             return
-
-        gpt_analysis = await analyze_with_gpt(article_data['content'])
-        
         wordpress_url = 'https://doanhnghiepchinhsach.vn/'
         wp_user = 'dncs_user'
         wp_password = 'bk0Nw7MBvX)B@blmxsM4zrOI'
