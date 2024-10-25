@@ -44,7 +44,7 @@ def extract_article_content(url):
 # 3. Phân tích với OpenAI GPT
 async def analyze_with_gpt(article_content):
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.Completion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": f"Phân tích nội dung sau: {article_content}"}],
             max_tokens=200
