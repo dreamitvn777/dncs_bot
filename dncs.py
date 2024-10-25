@@ -41,7 +41,7 @@ def extract_article_content(url):
 # 3. Phân tích với OpenAI GPT
 async def analyze_with_gpt(article_content):
     try:
-        response = await openai.ChatCompletion.create(
+        response = await openai.Completion.create(
             model="gpt-3.5-turbo",  # Bạn có thể thay đổi model nếu cần
             messages=[
                 {"role": "user", "content": f"Phân tích nội dung sau: {article_content}"}
