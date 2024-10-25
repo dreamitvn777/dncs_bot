@@ -1,97 +1,85 @@
 import logging
 import requests
-from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, filters
 from bs4 import BeautifulSoup
+import base64
+
+# 1. Thiết lập OpenAI và Telegram token
+TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'  # Thay bằng token của bot Telegram
 
 # Thiết lập logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Thiết lập thông tin WordPress và Telegram
-WORDPRESS_URL = 'https://doanhnghiepchinhsach.vn/wp-json/wp/v2/posts'
-WORDPRESS_USERNAME = 'pv01'  # Thay bằng username của bạn
-WORDPRESS_APP_PASSWORD = '53Tg za3P Xeey FapP jF33 wOKT'  # Thay bằng mật khẩu ứng dụng của bạn
-TELEGRAM_TOKEN = '7957341943:AAHnEmoz-IbiGLFmvrGCmWVytpFW9-WZd78'  # Thay bằng token của bot Telegram
-telegram_chat_id = '-4569179837'  # Thay bằng ID chat của bạn
-
-# Tạo đối tượng bot Telegram
-bot = Bot(token=TELEGRAM_TOKEN)
-
-# Hàm gửi thông báo lỗi qua Telegram
-async def send_error_to_telegram(chat_id, message):
-    await bot.send_message(chat_id=chat_id, text=f"Lỗi: {message}")
-
-# Hàm phân tích nội dung từ link
-def analyze_link(url):
+# 2. Phân tích bài viết từ URL
+def extract_article_content(url):
     try:
         response = requests.get(url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
+        response.raise_for_status()  # Kiểm tra lỗi HTTP
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Lỗi khi lấy bài viết: {e}")
+        return None
+    
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    title = soup.title.string if soup.title else "Không có tiêu đề"
+    paragraphs = soup.find_all('p')
+    article_content = '\n'.join([p.get_text() for p in paragraphs[:5]])  # Giới hạn 5 đoạn đầu
+    
+    images = soup.find_all('img')
+    image_urls = [img.get('src') for img in images[:3]]  # Lấy tối đa 3 ảnh
+    
+    return {
+        'title': title,
+        'content': article_content,
+        'image_urls': image_urls
+    }
 
-        # Lấy tiêu đề
-        title = soup.title.string if soup.title else "Không có tiêu đề"
-
-        # Lấy nội dung bài viết
-        content = soup.get_text(separator="\n")
-
-        # Lấy ảnh thumbnail (có thể thay đổi tùy vào cấu trúc HTML của trang)
-        thumbnail_url = soup.find('meta', property='og:image')['content'] if soup.find('meta', property='og:image') else ""
-
-        # Lấy ảnh trong bài viết (giả sử lấy ảnh đầu tiên trong bài)
-        images = [img['src'] for img in soup.find_all('img')]
-        first_image_url = images[0] if images else ""
-
-        return title, content, thumbnail_url, first_image_url
-    except Exception as e:
-        logger.error(f"Lỗi phân tích link: {e}")
-        return None, None, None, None
-
-# Hàm đăng bài lên WordPress
-async def post_to_wordpress(title, content, thumbnail_url, first_image_url):
-    post = {
+# 3. Đăng bài lên WordPress
+def create_wordpress_post(title, content, wordpress_url, wp_user, wp_password):
+    headers = {
+        'Authorization': 'Basic ' + base64.b64encode(f"{wp_user}:{wp_password}".encode()).decode('utf-8'),
+        'Content-Type': 'application/json'
+    }
+    post_data = {
         'title': title,
         'content': content,
-        'status': 'publish',
-        'featured_media': thumbnail_url  # Cần upload hình ảnh lên WP trước khi sử dụng
+        'status': 'publish'
     }
     try:
-        response = requests.post(
-            WORDPRESS_URL,
-            json=post,
-            auth=(WORDPRESS_USERNAME, WORDPRESS_APP_PASSWORD)
-        )
+        response = requests.post(f'{wordpress_url}/wp-json/wp/v2/posts', headers=headers, json=post_data)
         response.raise_for_status()
-    except Exception as e:
-        logger.error(f"Lỗi đăng bài: {e}")
-        await send_error_to_telegram(telegram_chat_id, f"Lỗi đăng bài: {e}")
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Lỗi đăng bài lên WordPress: {e}")
+        return None
 
-# Hàm xử lý tin nhắn
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        # Nhận link từ tin nhắn
-        article_url = update.message.text
+# 4. Xử lý tin nhắn Telegram
+async def handle_message(update, context):
+    url = update.message.text
+    if url.startswith('http'):
+        article_data = extract_article_content(url)
+        if article_data is None:
+            await update.message.reply_text("Không thể lấy nội dung bài viết.")
+            return
+
+        wordpress_url = 'https://doanhnghiepchinhsach.vn/'
+        wp_user = 'dncs_user'
+        wp_password = 'bk0Nw7MBvX)B@blmxsM4zrOI'
         
-        # Phân tích nội dung từ link
-        title, content, thumbnail_url, first_image_url = analyze_link(article_url)
-
-        if title and content:
-            await post_to_wordpress(title, content, thumbnail_url, first_image_url)
-            await update.message.reply_text("Bài viết đã được đăng thành công!")
+        new_post = create_wordpress_post(article_data['title'], article_data['content'], wordpress_url, wp_user, wp_password)
+        if new_post is None:
+            await update.message.reply_text("Đăng bài lên WordPress không thành công.")
         else:
-            await update.message.reply_text("Không thể phân tích nội dung từ link.")
-    except Exception as e:
-        logger.error(f"Lỗi xử lý tin nhắn: {e}")
-        await send_error_to_telegram(telegram_chat_id, str(e))
+            await update.message.reply_text(f"Bài viết đã được đăng: {new_post.get('link')}")
+    else:
+        await update.message.reply_text("Vui lòng gửi một URL hợp lệ.")
 
-# Hàm main
-async def main():
-    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    await application.run_polling()
+# 5. Khởi động bot Telegram
+def main():
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application.add_handler(MessageHandler(filters.TEXT, handle_message))
+    application.run_polling()  # Không cần await ở đây
 
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    main()  # Gọi hàm main mà không cần asyncio.run
