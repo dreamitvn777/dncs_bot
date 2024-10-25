@@ -76,9 +76,9 @@ def handle_message(update, context):
         if article_data:
             gpt_analysis = analyze_with_gpt(article_data['content'])
             
-        wordpress_url = 'https://doanhnghiepchinhsach.vn/'
-        wp_user = 'pv01'
-        wp_password = 'cK3UqQ5MhNt0fGq0mjiDpB4C'
+            wordpress_url = 'https://doanhnghiepchinhsach.vn/'
+            wp_user = 'pv01'
+            wp_password = 'cK3UqQ5MhNt0fGq0mjiDpB4C'
             
             new_post = create_wordpress_post(article_data['title'], gpt_analysis, wordpress_url, wp_user, wp_password)
             if new_post:
