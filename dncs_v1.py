@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import base64
 
 # 1. Thiết lập OpenAI và Telegram token
-TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'  # Thay bằng token của bot Telegram
+TELEGRAM_TOKEN = 'YOUR_TELEGRAM_TOKEN'  # Thay bằng token của bot Telegram
 
 # Thiết lập logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -64,8 +64,8 @@ async def handle_message(update, context):
             return
 
         wordpress_url = 'https://doanhnghiepchinhsach.vn/'
-        wp_user = 'dncs_user'
-        wp_password = 'bk0Nw7MBvX)B@blmxsM4zrOI'
+        wp_user = 'pv01'
+        wp_password = '53Tg za3P Xeey FapP jF33 wOKT'
         
         new_post = create_wordpress_post(article_data['title'], article_data['content'], wordpress_url, wp_user, wp_password)
         if new_post is None:
