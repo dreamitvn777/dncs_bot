@@ -1,10 +1,10 @@
 import logging
 import requests
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, MessageHandler, filters
 from bs4 import BeautifulSoup
 import openai
 import base64
+import asyncio
 
 # 1. Thiết lập OpenAI và Telegram token
 openai.api_key = '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'
@@ -30,12 +30,14 @@ def extract_article_content(url):
 
 # 3. Phân tích với OpenAI GPT
 async def analyze_with_gpt(article_content):
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=f"Phân tích nội dung sau: {article_content}",
+    response = await openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",  # Bạn có thể thay đổi model nếu cần
+        messages=[
+            {"role": "user", "content": f"Phân tích nội dung sau: {article_content}"}
+        ],
         max_tokens=200
     )
-    return response.choices[0].text.strip()
+    return response['choices'][0]['message']['content'].strip()
 
 # 4. Đăng bài lên WordPress
 def create_wordpress_post(title, content, wordpress_url, wp_user, wp_password):
@@ -52,7 +54,7 @@ def create_wordpress_post(title, content, wordpress_url, wp_user, wp_password):
     return response.json()
 
 # 5. Xử lý tin nhắn Telegram
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_message(update, context):
     url = update.message.text
     if url.startswith('http'):
         article_data = extract_article_content(url)
@@ -63,17 +65,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         wp_password = 'cK3UqQ5MhNt0fGq0mjiDpB4C'
         
         new_post = create_wordpress_post(article_data['title'], gpt_analysis, wordpress_url, wp_user, wp_password)
-        await update.message.reply_text(f"Bài viết đã được đăng: {new_post.get('link')}")
+        update.message.reply_text(f"Bài viết đã được đăng: {new_post.get('link')}")
     else:
-        await update.message.reply_text("Vui lòng gửi một URL hợp lệ.")
+        update.message.reply_text("Vui lòng gửi một URL hợp lệ.")
 
 # 6. Khởi động bot Telegram
-def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
-
-    app.run_polling()
+async def main():
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application.add_handler(MessageHandler(filters.TEXT, handle_message))
+    await application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
