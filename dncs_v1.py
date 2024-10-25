@@ -1,116 +1,97 @@
-import requests
-import json
 import logging
+import requests
 from telegram import Update, Bot
-from telegram.ext import ApplicationBuilder, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from bs4 import BeautifulSoup
 
-# WordPress details
-wordpress_url = 'https://doanhnghiepchinhsach.vn/wp-json/wp/v2/posts'
-wp_user = 'pv01'
-wp_application_password = '53Tg za3P Xeey FapP jF33 wOKT'
+# Thiết lập logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Telegram bot token và chat ID
-TELEGRAM_TOKEN = '7957341943:AAHnEmoz-IbiGLFmvrGCmWVytpFW9-WZd78'
-telegram_chat_id = '-4569179837'  # ID chat của bạn
+# Thiết lập thông tin WordPress và Telegram
+WORDPRESS_URL = 'https://doanhnghiepchinhsach.vn/wp-json/wp/v2/posts'
+WORDPRESS_USERNAME = 'pv01'  # Thay bằng username của bạn
+WORDPRESS_APP_PASSWORD = '53Tg za3P Xeey FapP jF33 wOKT'  # Thay bằng mật khẩu ứng dụng của bạn
+TELEGRAM_TOKEN = '7957341943:AAHnEmoz-IbiGLFmvrGCmWVytpFW9-WZd78'  # Thay bằng token của bot Telegram
+telegram_chat_id = '-4569179837'  # Thay bằng ID chat của bạn
 
-# Logging setup
-logging.basicConfig(level=logging.INFO)
-
-# Telegram bot for logging errors
+# Tạo đối tượng bot Telegram
 bot = Bot(token=TELEGRAM_TOKEN)
 
-# Function to send error message via Telegram
-def send_error_to_telegram(message):
-    bot.send_message(chat_id=telegram_chat_id, text=f"Lỗi: {message}")
+# Hàm gửi thông báo lỗi qua Telegram
+async def send_error_to_telegram(chat_id, message):
+    await bot.send_message(chat_id=chat_id, text=f"Lỗi: {message}")
 
-# Function to create a WordPress post
-def create_wordpress_post(title, content, image_url):
+# Hàm phân tích nội dung từ link
+def analyze_link(url):
     try:
-        # Get image and upload to WordPress
-        image_id = upload_image_to_wordpress(image_url)
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Set post data
-        post_data = {
-            'title': title,
-            'content': content,
-            'status': 'publish',
-            'featured_media': image_id  # Set featured image
-        }
+        # Lấy tiêu đề
+        title = soup.title.string if soup.title else "Không có tiêu đề"
 
-        # Send post request to WordPress API
-        response = requests.post(wordpress_url, json=post_data, auth=(wp_user, wp_application_password))
+        # Lấy nội dung bài viết
+        content = soup.get_text(separator="\n")
 
-        if response.status_code == 201:
-            logging.info(f"Đăng bài thành công: {title}")
-        else:
-            logging.error(f"Lỗi đăng bài: {response.content}")
-            send_error_to_telegram(f"Lỗi đăng bài: {response.content}")
+        # Lấy ảnh thumbnail (có thể thay đổi tùy vào cấu trúc HTML của trang)
+        thumbnail_url = soup.find('meta', property='og:image')['content'] if soup.find('meta', property='og:image') else ""
+
+        # Lấy ảnh trong bài viết (giả sử lấy ảnh đầu tiên trong bài)
+        images = [img['src'] for img in soup.find_all('img')]
+        first_image_url = images[0] if images else ""
+
+        return title, content, thumbnail_url, first_image_url
     except Exception as e:
-        logging.error(f"Lỗi tạo bài viết: {str(e)}")
-        send_error_to_telegram(f"Lỗi tạo bài viết: {str(e)}")
+        logger.error(f"Lỗi phân tích link: {e}")
+        return None, None, None, None
 
-# Function to upload image to WordPress
-def upload_image_to_wordpress(image_url):
+# Hàm đăng bài lên WordPress
+async def post_to_wordpress(title, content, thumbnail_url, first_image_url):
+    post = {
+        'title': title,
+        'content': content,
+        'status': 'publish',
+        'featured_media': thumbnail_url  # Cần upload hình ảnh lên WP trước khi sử dụng
+    }
     try:
-        image_data = requests.get(image_url).content
-        media_url = f'{wordpress_url}/media'
-        media_headers = {'Content-Disposition': f'attachment; filename=image.jpg'}
-        media_response = requests.post(media_url, data=image_data, headers=media_headers, auth=(wp_user, wp_application_password))
-
-        if media_response.status_code == 201:
-            media_id = media_response.json()['id']
-            logging.info(f"Tải ảnh lên thành công, media ID: {media_id}")
-            return media_id
-        else:
-            logging.error(f"Lỗi tải ảnh lên: {media_response.content}")
-            send_error_to_telegram(f"Lỗi tải ảnh lên: {media_response.content}")
-            return None
+        response = requests.post(
+            WORDPRESS_URL,
+            json=post,
+            auth=(WORDPRESS_USERNAME, WORDPRESS_APP_PASSWORD)
+        )
+        response.raise_for_status()
     except Exception as e:
-        logging.error(f"Lỗi tải ảnh lên WordPress: {str(e)}")
-        send_error_to_telegram(f"Lỗi tải ảnh lên WordPress: {str(e)}")
-        return None
+        logger.error(f"Lỗi đăng bài: {e}")
+        await send_error_to_telegram(telegram_chat_id, f"Lỗi đăng bài: {e}")
 
-# Function to handle incoming Telegram messages
-async def handle_message(update: Update, context):
+# Hàm xử lý tin nhắn
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        message = update.message.text
-        if message.startswith("http"):
-            # Fetch article content
-            response = requests.get(message)
-            soup = BeautifulSoup(response.content, 'html.parser')
+        # Nhận link từ tin nhắn
+        article_url = update.message.text
+        
+        # Phân tích nội dung từ link
+        title, content, thumbnail_url, first_image_url = analyze_link(article_url)
 
-            title = soup.title.string
-            content = soup.get_text()
-
-            # Extract first image from article
-            image = soup.find('img')
-            image_url = image['src'] if image else None
-
-            # Create post on WordPress
-            create_wordpress_post(title, content, image_url)
+        if title and content:
+            await post_to_wordpress(title, content, thumbnail_url, first_image_url)
+            await update.message.reply_text("Bài viết đã được đăng thành công!")
         else:
-            update.message.reply_text("Vui lòng gửi link bài viết.")
+            await update.message.reply_text("Không thể phân tích nội dung từ link.")
     except Exception as e:
-        logging.error(f"Lỗi xử lý tin nhắn: {str(e)}")
-        send_error_to_telegram(f"Lỗi xử lý tin nhắn: {str(e)}")
+        logger.error(f"Lỗi xử lý tin nhắn: {e}")
+        await send_error_to_telegram(telegram_chat_id, str(e))
 
-# Main function to run the bot
+# Hàm main
 async def main():
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    application = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    message_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    app.add_handler(message_handler)
+    await application.run_polling()
 
-    logging.info("Bot đã sẵn sàng.")
-    await app.start()
-    await app.idle()
-
-# Chạy bot
 if __name__ == '__main__':
-    try:
-        import asyncio
-        asyncio.run(main())
-    except Exception as e:
-        logging.error(f"Lỗi khởi chạy bot: {str(e)}")
-        send_error_to_telegram(f"Lỗi khởi chạy bot: {str(e)}")
+    import asyncio
+    asyncio.run(main())
