@@ -1,6 +1,6 @@
 import logging
 import requests
-from telegram.ext import Updater, MessageHandler, Filters
+from telegram.ext import Updater, MessageHandler, filters  # Sử dụng filters
 from bs4 import BeautifulSoup
 import openai
 import base64
