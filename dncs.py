@@ -7,7 +7,6 @@ import base64
 import asyncio
 
 # 1. Thiết lập OpenAI và Telegram token
-openai.api_key = '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'
 TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
 
 # Thiết lập logging
@@ -39,19 +38,6 @@ def extract_article_content(url):
     }
 
 # 3. Phân tích với OpenAI GPT
-async def analyze_with_gpt(article_content):
-    try:
-        response = await openai.Completion.create(
-            model="gpt-3.5-turbo",  # Bạn có thể thay đổi model nếu cần
-            messages=[
-                {"role": "user", "content": f"Phân tích nội dung sau: {article_content}"}
-            ],
-            max_tokens=200
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        logger.error(f"Error analyzing with GPT: {e}")
-        return "Phân tích không thành công."
 
 # 4. Đăng bài lên WordPress
 def create_wordpress_post(title, content, wordpress_url, wp_user, wp_password):
