@@ -116,6 +116,9 @@ def create_wordpress_post(title, content, category_id, image_id=None, auth_heade
         print(f"Lỗi khi đăng bài viết lên WordPress: {e}")
         return None
 
+async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Vui lòng gửi một URL bài viết để bắt đầu.")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if url.startswith('http'):
@@ -125,12 +128,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Không thể phân tích nội dung từ URL.")
             return
         
-        # Chọn danh mục
-        await update.message.reply_text("Vui lòng chọn danh mục từ danh sách sau: " + ", ".join(CATEGORIES.keys()))
-        
-        # Lưu danh mục vào context
+        # Lưu dữ liệu bài viết vào context
         context.user_data['article_data'] = article_data
         context.user_data['url'] = url
+
+        # Yêu cầu người dùng chọn danh mục
+        category_message = "Vui lòng chọn danh mục từ danh sách sau:\n" + "\n".join(CATEGORIES.keys())
+        await update.message.reply_text(category_message)
     else:
         await update.message.reply_text("Vui lòng gửi một URL hợp lệ.")
 
@@ -167,9 +171,4 @@ async def handle_category_selection(update: Update, context: ContextTypes.DEFAUL
 
 def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
-    application.add_handler(CommandHandler('start', handle_message))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_category_selection))
-    application.run_polling()
-
-if __name__ == '__main__':
-    main()
+    application.add_handler(Com
