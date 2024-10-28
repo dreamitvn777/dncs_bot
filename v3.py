@@ -171,4 +171,10 @@ async def handle_category_selection(update: Update, context: ContextTypes.DEFAUL
 
 def main():
     application = Application.builder().token(TELEGRAM_TOKEN).build()
-    application.add_handler(Com
+    application.add_handler(CommandHandler('start', handle_start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_category_selection))
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
