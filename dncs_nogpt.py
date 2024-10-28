@@ -1,6 +1,6 @@
 import requests
 from telegram import Bot, Update, ReplyKeyboardMarkup
-from telegram.ext import CommandHandler, MessageHandler, Filters, Application, CallbackContext
+from telegram.ext import CommandHandler, MessageHandler, Filters, Updater, CallbackContext
 from bs4 import BeautifulSoup
 import json
 import random
