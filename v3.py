@@ -4,7 +4,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from bs4 import BeautifulSoup
 import base64
-import json
 import random
 
 # Thiết lập API Tokens và cấu hình
@@ -39,24 +38,15 @@ async def extract_article_content(url):
         
         title = soup.title.string if soup.title else "Không có tiêu đề"
         
-        # Giả sử nội dung bài viết chính nằm trong thẻ <article> hoặc <div> có lớp cụ thể
-        content_div = soup.find('article') or soup.find('div', class_='content')  # Thay đổi lớp nếu cần
-        content = ''.join([str(p) for p in content_div.find_all('p')]) if content_div else "Không tìm thấy nội dung"
-
-        # Xóa tất cả các liên kết ẩn trong nội dung
-        if content_div:
-            for a in content_div.find_all('a'):
-                a.decompose()  # Xóa liên kết
-
+        # Xóa các liên kết ẩn (thẻ <a>)
+        for a in soup.find_all('a'):
+            a.replace_with(a.text)  # Thay thế thẻ <a> bằng nội dung văn bản của nó
+        
+        content = ''.join([str(p) for p in soup.find_all('p')])  # Giữ nguyên HTML của các thẻ <p>
+        
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
-        image_urls = []
-        for img in image_tags:
-            if 'src' in img.attrs:
-                img_url = img['src']
-                if not img_url.startswith(('http://', 'https://')):
-                    img_url = requests.compat.urljoin(url, img_url)
-                image_urls.append(img_url)
+        image_urls = [img['src'] for img in image_tags if 'src' in img.attrs]
         
         return {"title": title, "content": content, "image_urls": image_urls}
     except Exception as e:
@@ -99,10 +89,9 @@ def create_wordpress_post(title, content, category_id, image_id=None, wp_user=No
             'status': 'publish',
             'categories': [category_id]
         }
-        
         if image_id:
             data['featured_media'] = image_id
-
+        
         response = requests.post(
             f"{wordpress_url}/wp-json/wp/v2/posts",
             headers=auth_header,
@@ -142,6 +131,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Vui lòng chọn danh mục trước khi gửi URL.")
             return
 
+        # Chọn ngẫu nhiên tài khoản tác giả
         author = random.choice(AUTHORS)
         wp_user = author["username"]
         wp_password = author["password"]
