@@ -36,14 +36,22 @@ async def extract_article_content(url):
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         
+        # Lấy tiêu đề
         title = soup.title.string if soup.title else "Không có tiêu đề"
         
-        # Xóa các liên kết ẩn (thẻ <a>)
-        for a in soup.find_all('a'):
-            a.replace_with(a.text)  # Thay thế thẻ <a> bằng nội dung văn bản của nó
+        # Xác định thẻ bao quanh nội dung chính (ví dụ: thẻ <div> với class "post-content")
+        content_div = soup.find('div', class_='post-content')  # Thay 'post-content' bằng class phù hợp với trang web
+
+        # Nếu không tìm thấy thẻ bao quanh cụ thể, mặc định lấy tất cả các thẻ <p>
+        if content_div:
+            paragraphs = content_div.find_all('p')
+        else:
+            paragraphs = soup.find_all('p')
         
+        # Kết hợp tất cả các đoạn văn thành một chuỗi văn bản
+        content = '\n'.join([p.get_text() for p in paragraphs])
         
-        # Lấy URL ảnh
+        # Lấy URL ảnh (nếu có)
         image_tags = soup.find_all('img')
         image_urls = [img['src'] for img in image_tags if 'src' in img.attrs]
         
