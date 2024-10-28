@@ -42,7 +42,6 @@ async def extract_article_content(url):
         for a in soup.find_all('a'):
             a.replace_with(a.text)  # Thay thế thẻ <a> bằng nội dung văn bản của nó
         
-        content = ''.join([str(p) for p in soup.find_all('p')])  # Giữ nguyên HTML của các thẻ <p>
         
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
