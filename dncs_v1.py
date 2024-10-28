@@ -9,8 +9,8 @@ import json
 # Thiết lập API Tokens và cấu hình
 TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
 wordpress_url = 'https://doanhnghiepchinhsach.vn'
-wp_user = 'pv01'
-wp_password = '3XXo 2dqL AJ08 IGrp RYVa ukBQ'
+wp_user = 'dreamitvn'
+wp_password = 'waxA US8m 3XtO anbm Kc1x w4TT'
 
 auth_header = {
     'Authorization': 'Basic ' + base64.b64encode(f"{wp_user}:{wp_password}".encode()).decode('utf-8'),
