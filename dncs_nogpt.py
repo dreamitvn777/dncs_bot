@@ -1,107 +1,127 @@
 import requests
+from telegram import Bot, Update
+from telegram.ext import CommandHandler, MessageHandler, Filters, Updater, CallbackContext
 from bs4 import BeautifulSoup
-import openai
+import json
+
+# Telegram Bot Token
+TELEGRAM_BOT_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
+# WordPress Credentials
+WP_URL = "https://doanhnghiepchinhsach.vn/wp-json/wp/v2/"
+WP_USERNAME = "dreamitvn"
+WP_PASSWORD = "waxA US8m 3XtO anbm Kc1x w4TT"
+
+# Base64 encoding for WordPress authentication
 import base64
-import logging
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+wp_token = base64.b64encode(f"{WP_USERNAME}:{WP_PASSWORD}".encode()).decode("utf-8")
 
-# 1. Thiết lập OpenAI và Telegram token
-openai.api_key = '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'
-TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
+# WordPress Category IDs
+CATEGORIES = {
+    "Chính sách": 8,
+    "Công Nghệ": 22,
+    "Doanh nghiệp": 12,
+    "Kinh Doanh": 20,
+    "Pháp luật": 21,
+    "Tài Chính": 2,
+    "Thương hiệu": 7,
+    "Nhìn ra thế giới": 19,
+    "Tin chính phủ": 43,
+    "Tin trong nước": 1
+}
 
-# Thay đổi thông tin WordPress
-wordpress_url = 'https://doanhnghiepchinhsach.vn/'
-wp_user = 'pv01'
-wp_password = '53Tg za3P Xeey FapP jF33 wOKT'
-
-# Thiết lập logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
-
-# 2. Lấy nội dung bài viết từ URL
-def extract_article_content(url):
+def fetch_article_data(url):
+    """Fetch and parse article content from URL"""
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Kiểm tra lỗi HTTP
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        title = soup.title.string if soup.title else "No title"
-        paragraphs = soup.find_all('p')
-        article_content = '\n'.join([p.get_text() for p in paragraphs[:5]])
-        
-        return {
-            'title': title,
-            'content': article_content
-        }
-    except Exception as e:
-        logger.error(f"Error extracting article content: {e}")
-        return None
-
-# 3. Phân tích với OpenAI GPT
-async def analyze_with_gpt(article_content):
-    try:
-        response = openai.Completion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": f"Phân tích nội dung sau: {article_content}"}],
-            max_tokens=200
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        logger.error(f"Error analyzing with GPT: {e}")
-        return None
-
-# 4. Đăng bài lên WordPress
-def create_wordpress_post(title, content):
-    try:
-        headers = {
-            'Authorization': 'Basic ' + base64.b64encode(f"{wp_user}:{wp_password}".encode()).decode('utf-8'),
-            'Content-Type': 'application/json'
-        }
-        post_data = {
-            'title': title,
-            'content': content,
-            'status': 'publish'
-        }
-        response = requests.post(f'{wordpress_url}/wp-json/wp/v2/posts', headers=headers, json=post_data)
         response.raise_for_status()
-        return response.json()
+        soup = BeautifulSoup(response.text, "html.parser")
+        title = soup.title.string.strip() if soup.title else "No Title"
+        content = "\n".join([p.get_text() for p in soup.find_all("p")])
+        image_url = soup.find("img")["src"] if soup.find("img") else None
+        return title, content, image_url
     except Exception as e:
-        logger.error(f"Error creating WordPress post: {e}")
+        print(f"Error fetching article data: {e}")
+        return None, None, None
+
+def upload_image_to_wordpress(image_url):
+    """Upload image to WordPress media library"""
+    try:
+        response = requests.get(image_url)
+        response.raise_for_status()
+        headers = {"Authorization": f"Basic {wp_token}"}
+        files = {
+            "file": (image_url.split("/")[-1], response.content),
+            "Content-Disposition": "attachment; filename=" + image_url.split("/")[-1]
+        }
+        res = requests.post(f"{WP_URL}media", headers=headers, files=files)
+        res.raise_for_status()
+        media_id = res.json().get("id")
+        return media_id
+    except Exception as e:
+        print(f"Error uploading image: {e}")
         return None
 
-# 5. Xử lý tin nhắn
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    url = update.message.text
-    article_data = extract_article_content(url)
-    
-    if article_data:
-        gpt_analysis = await analyze_with_gpt(article_data['content'])
+def post_to_wordpress(title, content, category_id, image_id=None):
+    """Post content to WordPress with selected category and image"""
+    headers = {
+        "Authorization": f"Basic {wp_token}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "title": title,
+        "content": content.replace("\n", "<br>"),
+        "status": "publish",
+        "categories": [category_id]
+    }
+    if image_id:
+        data["featured_media"] = image_id
+
+    try:
+        response = requests.post(f"{WP_URL}posts", headers=headers, data=json.dumps(data))
+        response.raise_for_status()
+        print("Post published successfully.")
+    except Exception as e:
+        print(f"Error posting to WordPress: {e}")
+
+def handle_message(update: Update, context: CallbackContext):
+    """Process incoming Telegram messages and post to WordPress"""
+    chat_id = update.effective_chat.id
+    if update.message.text.startswith("http"):
+        url = update.message.text
+        title, content, image_url = fetch_article_data(url)
         
-        if gpt_analysis:
-            new_post = create_wordpress_post(article_data['title'], gpt_analysis)
-            
-            if new_post:
-                await update.message.reply_text(f"Bài đăng mới đã được tạo với ID: {new_post['id']}")
-            else:
-                await update.message.reply_text("Có lỗi khi tạo bài đăng trên WordPress.")
-        else:
-            await update.message.reply_text("Có lỗi khi phân tích bài viết với GPT.")
+        if not title or not content:
+            context.bot.send_message(chat_id, "Error fetching content from the link.")
+            return
+
+        # Prompt for category selection
+        buttons = [[category] for category in CATEGORIES.keys()]
+        context.bot.send_message(chat_id, "Please choose a category:", reply_markup=ReplyKeyboardMarkup(buttons))
+
+        def category_selected(update, context):
+            category = update.message.text
+            category_id = CATEGORIES.get(category)
+
+            if category_id is None:
+                context.bot.send_message(chat_id, "Invalid category selected.")
+                return
+
+            image_id = upload_image_to_wordpress(image_url) if image_url else None
+            post_to_wordpress(title, content, category_id, image_id)
+            context.bot.send_message(chat_id, "Post published successfully.")
+
+        dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, category_selected))
+
     else:
-        await update.message.reply_text("Không thể lấy nội dung từ URL.")
+        context.bot.send_message(chat_id, "Please send a valid URL.")
 
-# 6. Hàm main
-def main():
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
-    
-    # Xử lý tin nhắn văn bản
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Chạy bot
-    application.run_polling()
+# Telegram bot setup
+updater = Updater(TELEGRAM_BOT_TOKEN)
+dispatcher = updater.dispatcher
 
-if __name__ == '__main__':
-    main()
+# Command and message handlers
+dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+
+# Start the bot
+updater.start_polling()
+updater.idle()
