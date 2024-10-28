@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 import base64
 import json
 import random
-from datetime import datetime
 
 # Thiết lập API Tokens và cấu hình
 TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
@@ -45,16 +44,9 @@ async def extract_article_content(url):
         content = ''.join([str(p) for p in content_div.find_all('p')]) if content_div else "Không tìm thấy nội dung"
 
         # Xóa tất cả các liên kết ẩn trong nội dung
-        for a in content_div.find_all('a'):
-            a.decompose()  # Xóa liên kết
-
-        # Lấy thời gian đăng bài
-        published_time = None
-        meta_time = soup.find('meta', property='article:published_time')
-        if meta_time and 'content' in meta_time.attrs:
-            published_time = meta_time['content']
-        else:
-            logging.warning("Không tìm thấy thời gian đăng bài.")
+        if content_div:
+            for a in content_div.find_all('a'):
+                a.decompose()  # Xóa liên kết
 
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
@@ -66,7 +58,7 @@ async def extract_article_content(url):
                     img_url = requests.compat.urljoin(url, img_url)
                 image_urls.append(img_url)
         
-        return {"title": title, "content": content, "image_urls": image_urls, "published_time": published_time}
+        return {"title": title, "content": content, "image_urls": image_urls}
     except Exception as e:
         logging.error(f"Lỗi khi phân tích nội dung từ URL: {e}")
         return None
@@ -94,7 +86,7 @@ def upload_image_to_wordpress(image_url, wp_user, wp_password):
         logging.error(f"Lỗi khi tải ảnh lên WordPress: {e}")
         return None
 
-def create_wordpress_post(title, content, category_id, image_id=None, wp_user=None, wp_password=None, published_time=None):
+def create_wordpress_post(title, content, category_id, image_id=None, wp_user=None, wp_password=None):
     try:
         auth_header = {
             'Authorization': 'Basic ' + base64.b64encode(f"{wp_user}:{wp_password}".encode()).decode('utf-8'),
@@ -110,10 +102,6 @@ def create_wordpress_post(title, content, category_id, image_id=None, wp_user=No
         
         if image_id:
             data['featured_media'] = image_id
-        
-        if published_time:
-            published_time_dt = datetime.fromisoformat(published_time[:-1])  # Loại bỏ ký tự cuối nếu cần
-            data['date'] = published_time_dt.isoformat() + 'Z'
 
         response = requests.post(
             f"{wordpress_url}/wp-json/wp/v2/posts",
@@ -167,7 +155,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not image_id:
                 await update.message.reply_text("Không thể tải ảnh lên WordPress.")
         
-        new_post = create_wordpress_post(article_data['title'], article_data['content'], category_id, image_id, wp_user, wp_password, article_data['published_time'])
+        new_post = create_wordpress_post(article_data['title'], article_data['content'], category_id, image_id, wp_user, wp_password)
         if new_post:
             await update.message.reply_text(f"Bài viết đã được đăng: {new_post.get('link')}")
         else:
