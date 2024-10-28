@@ -1,7 +1,7 @@
 import logging
 import requests
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from bs4 import BeautifulSoup
 import base64
 import json
@@ -38,7 +38,7 @@ async def extract_article_content(url):
         soup = BeautifulSoup(response.text, 'html.parser')
         
         title = soup.title.string if soup.title else "Không có tiêu đề"
-        content = ''.join([p.get_text() for p in soup.find_all('p')])
+        content = ''.join([str(p) for p in soup.find_all('p')])  # Giữ nguyên HTML
         
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
@@ -100,6 +100,20 @@ def create_wordpress_post(title, content, category_id, image_id=None, wp_user=No
         logging.error(f"Lỗi khi đăng bài viết lên WordPress: {e}")
         return None
 
+async def send_category_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton(cat, callback_data=cat) for cat in CATEGORIES.keys()]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('Vui lòng chọn danh mục:', reply_markup=reply_markup)
+
+async def handle_category_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    category_name = query.data
+    context.user_data['selected_category'] = category_name
+    await query.edit_message_text(text=f"Bạn đã chọn danh mục: {category_name}. Vui lòng gửi URL bài viết.")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     if url.startswith('http'):
@@ -108,16 +122,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not article_data:
             await update.message.reply_text("Không thể phân tích nội dung từ URL.")
             return
-        
+
+        if 'selected_category' not in context.user_data:
+            await update.message.reply_text("Vui lòng chọn danh mục trước khi gửi URL.")
+            return
+
         # Chọn ngẫu nhiên tài khoản tác giả
         author = random.choice(AUTHORS)
         wp_user = author["username"]
         wp_password = author["password"]
         
-        # Chọn ngẫu nhiên danh mục
-        category_name = random.choice(list(CATEGORIES.keys()))
+        category_name = context.user_data['selected_category']
         category_id = CATEGORIES[category_name]
-        
+
         image_id = None
         if article_data['image_urls']:
             image_id = upload_image_to_wordpress(article_data['image_urls'][0], wp_user, wp_password)
@@ -135,6 +152,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     logging.basicConfig(level=logging.INFO)
     application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application.add_handler(CommandHandler('start', send_category_selection))
+    application.add_handler(CallbackQueryHandler(handle_category_selection))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.run_polling()
 
