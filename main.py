@@ -3,10 +3,13 @@ import openai
 import requests
 import json
 import random
+import logging
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 # Tải các biến môi trường từ file .env
 load_dotenv()
