@@ -54,7 +54,16 @@ async def extract_article_content(url):
         
         title = soup.title.string if soup.title else "Không có tiêu đề"
         # Lấy nội dung chính xác từ các thẻ <p> mà không bao gồm liên kết ẩn
-        content = ''.join([str(p) for p in soup.find_all('p') if not p.find_parent('footer') and 'liên quan' not in p.text.lower()])
+        paragraphs = []
+        for p in soup.find_all('p'):
+            if not p.find_parent('footer') and 'liên quan' not in p.text.lower():
+                # Xóa các thẻ <a> trong đoạn văn
+                for a in p.find_all('a'):
+                    a.decompose()  # Loại bỏ thẻ <a> mà vẫn giữ lại văn bản bên trong
+                paragraphs.append(str(p))
+        
+        # Kết hợp các đoạn văn lại thành nội dung hoàn chỉnh
+        content = ''.join(paragraphs)
 
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
