@@ -70,11 +70,10 @@ async def extract_article_content(url):
         image_urls = [urljoin(url, img['src']) for img in image_tags if 'src' in img.attrs]
 
         # Lấy các tag từ bài viết (giả sử các tag nằm trong thẻ <meta> với thuộc tính name="keywords")
+       tag_elements = soup.find_all('meta', attrs={'name': 'keywords'})
         tags = []
-        meta_tags = soup.find_all('meta')
-        for meta in meta_tags:
-            if meta.get('name') == 'keywords':
-                tags = [tag.strip() for tag in meta.get('content').split(',')]
+        if tag_elements:
+            tags = [tag['content'] for tag in tag_elements if 'content' in tag.attrs]
         
         # Viết lại nội dung bằng OpenAI
         rewritten_content = rewrite_content_with_openai(content)
