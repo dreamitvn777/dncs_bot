@@ -4,6 +4,7 @@ import requests
 import json
 import random
 import logging
+import base64 
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from telegram import Update
