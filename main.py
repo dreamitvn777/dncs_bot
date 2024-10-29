@@ -30,7 +30,7 @@ openai.api_key = OPENAI_API_KEY
 # Hàm sử dụng OpenAI để viết lại nội dung
 def rewrite_content_with_openai(content):
     try:
-        chat_completion = client.chat.completions.create(
+        chat_completion = client.ChatCompletions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an assistant that rewrites content for clarity without changing the meaning."},
