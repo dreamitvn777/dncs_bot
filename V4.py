@@ -65,13 +65,16 @@ async def extract_article_content(url):
 
 def rewrite_content_with_openai(content):
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=f"Rewrite the following content to improve clarity without changing its meaning:\n\n{content}",
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an assistant that rewrites content for clarity without changing the meaning."},
+                {"role": "user", "content": f"Rewrite the following content to improve clarity without changing its meaning:\n\n{content}"}
+            ],
             temperature=0.5,
             max_tokens=1500
         )
-        return response.choices[0].text.strip()
+        return response.choices[0].message['content'].strip()
     except Exception as e:
         logging.error(f"Lỗi khi viết lại nội dung bằng OpenAI: {e}")
         return content
