@@ -68,6 +68,13 @@ async def extract_article_content(url):
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
         image_urls = [urljoin(url, img['src']) for img in image_tags if 'src' in img.attrs]
+
+        # Lấy các tag từ bài viết (giả sử các tag nằm trong thẻ <meta> với thuộc tính name="keywords")
+        tags = []
+        meta_tags = soup.find_all('meta')
+        for meta in meta_tags:
+            if meta.get('name') == 'keywords':
+                tags = [tag.strip() for tag in meta.get('content').split(',')]
         
         # Viết lại nội dung bằng OpenAI
         rewritten_content = rewrite_content_with_openai(content)
@@ -118,6 +125,7 @@ def create_wordpress_post(title, content, category_id, image_id=None, wp_user=No
             'content': content,
             'status': 'publish',
             'categories': [category_id]
+            'tags': tags or []  # Thêm các tag vào đây
         }
         if image_id:
             data['featured_media'] = image_id
