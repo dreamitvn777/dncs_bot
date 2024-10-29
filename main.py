@@ -11,6 +11,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
+from urllib.parse import urljoin
 
 # Tải các biến môi trường từ file .env
 load_dotenv()
@@ -57,7 +58,7 @@ async def extract_article_content(url):
 
         # Lấy URL ảnh
         image_tags = soup.find_all('img')
-        image_urls = [img['src'] for img in image_tags if 'src' in img.attrs]
+        image_urls = [urljoin(url, img['src']) for img in image_tags if 'src' in img.attrs]
         
         # Viết lại nội dung bằng OpenAI
         rewritten_content = rewrite_content_with_openai(content)
