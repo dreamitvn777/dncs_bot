@@ -51,10 +51,11 @@ async def extract_article_content(url):
     try:
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
-        
+
         title = soup.title.string if soup.title else "Không có tiêu đề"
-        # Lấy nội dung chính xác từ các thẻ <p> mà không bao gồm liên kết ẩn
-         paragraphs = []
+
+        # Lấy nội dung
+        paragraphs = []
         for p in soup.find_all('p'):
             if not p.find_parent('footer') and 'liên quan' not in p.text.lower():
                 for a in p.find_all('a'):
@@ -72,11 +73,16 @@ async def extract_article_content(url):
         tags = []
         if tag_elements:
             tags = [tag['content'] for tag in tag_elements if 'content' in tag.attrs]
-        
+
         # Viết lại nội dung bằng OpenAI
         rewritten_content = rewrite_content_with_openai(content)
-        
-        return {"title": title, "content": rewritten_content, "image_urls": image_urls}
+
+        return {
+            "title": title,
+            "content": rewritten_content,
+            "image_urls": image_urls,
+            "tags": tags  # Trả về các tags
+        }
     except Exception as e:
         logging.error(f"Lỗi khi phân tích nội dung từ URL: {e}")
         return None
