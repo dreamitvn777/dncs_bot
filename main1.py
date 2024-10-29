@@ -123,8 +123,8 @@ def create_wordpress_post(title, content, category_id, image_id=None, wp_user=No
         data = {
             'title': title,
             'content': content,
-            'status': 'publish',
-            'categories': [category_id]
+            'status': 'pending',
+            'categories': [category_id],
             'tags': tags or []  # Thêm các tag vào đây
         }
         if image_id:
