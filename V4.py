@@ -11,7 +11,7 @@ import os
 
 # Thiết lập API Tokens và cấu hình
 TELEGRAM_TOKEN = '7846872870:AAEclA89Hy3i84FqPuh0ozFaHp4wFWLclFg'
-OPENAI_API_KEY = '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'
+OPENAI_API_KEY = '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'
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 wordpress_url = 'https://doanhnghiepchinhsach.vn'
 
