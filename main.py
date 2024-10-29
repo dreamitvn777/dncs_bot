@@ -4,7 +4,8 @@ import requests
 import json
 import random
 import logging
-import base64 
+import base64
+import httpx  # Thêm thư viện httpx
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from telegram import Update
@@ -68,30 +69,44 @@ async def extract_article_content(url):
         logging.error(f"Lỗi khi phân tích nội dung từ URL: {e}")
         return None
 
-# Hàm tải ảnh lên WordPress
-def upload_image_to_wordpress(image_url, wp_user, wp_password):
-    try:
-        image_data = requests.get(image_url).content
-        file_name = image_url.split('/')[-1]
-        files = {'file': (file_name, image_data, 'image/jpeg')}
-        
-        auth_header = {
-            'Authorization': 'Basic ' + base64.b64encode(f"{wp_user}:{wp_password}".encode()).decode('utf-8'),
-            'Content-Type': 'application/json'
-        }
-        
-        response = requests.post(
-            f"{wordpress_url}/wp-json/wp/v2/media",
-            headers=auth_header,
-            files=files
-        )
-        
-        response_json = response.json()
-        return response_json.get('id') if response.ok else None
-    except Exception as e:
-        logging.error(f"Lỗi khi tải ảnh lên WordPress: {e}")
-        return None
 
+# Hàm tải ảnh lên WordPress
+def upload_image_to_wordpress(image_path, wordpress_url, wp_username, wp_password):
+    # Đọc tệp ảnh
+    with open(image_path, "rb") as image_file:
+        # Đọc ảnh dưới dạng nhị phân
+        image_data = image_file.read()
+
+    # Mã hóa ảnh sang base64
+    encoded_image = base64.b64encode(image_data).decode('utf-8')
+
+    # Tạo payload để gửi lên WordPress
+    data = {
+        'file': encoded_image,
+        'title': 'My Image Title',
+        'alt_text': 'Description of the image',
+        'post_id': 0  # Bạn có thể thay đổi nếu bạn muốn gắn ảnh vào một bài viết cụ thể
+    }
+
+    # Tạo URL cho API tải ảnh lên
+    upload_url = f"{wordpress_url}/wp-json/wp/v2/media"
+
+    # Gửi yêu cầu POST
+    response = httpx.post(
+        upload_url,
+        headers={
+            'Authorization': f'Basic {base64.b64encode(f"{wp_username}:{wp_password}".encode()).decode()}',
+            'Content-Type': 'application/json'
+        },
+        json=data
+    )
+
+    if response.status_code == 201:
+        logging.info("Ảnh đã được tải lên thành công!")
+        return response.json()  # Trả về thông tin về ảnh đã tải lên
+    else:
+        logging.error(f"Lỗi khi tải ảnh lên: {response.text}")
+        return None
 # Hàm tạo bài viết mới trên WordPress
 def create_wordpress_post(title, content, category_id, image_id=None, wp_user=None, wp_password=None):
     try:
