@@ -65,7 +65,7 @@ async def extract_article_content(url):
 
 def rewrite_content_with_openai(content):
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.Chat.Completion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an assistant that rewrites content for clarity without changing the meaning."},
