@@ -1,6 +1,7 @@
 import os
 import openai
 import requests
+import json
 import random
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
