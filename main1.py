@@ -15,6 +15,7 @@ from urllib.parse import urljoin
 
 # Tải các biến môi trường từ file .env
 load_dotenv()
+
 # Lấy các thông tin từ file .env
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -30,7 +31,7 @@ openai.api_key = OPENAI_API_KEY
 # Hàm sử dụng OpenAI để viết lại nội dung
 def rewrite_content_with_openai(content):
     try:
-        chat_completion = client.chat.completions.create(
+        chat_completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are an assistant that rewrites content for clarity without changing the meaning."},
@@ -70,9 +71,7 @@ async def extract_article_content(url):
 
         # Lấy tags từ bài viết (Giả sử tags nằm trong thẻ <meta> với tên 'keywords')
         tag_elements = soup.find_all('meta', attrs={'name': 'keywords'})
-        tags = []
-        if tag_elements:
-            tags = [tag['content'] for tag in tag_elements if 'content' in tag.attrs]
+        tags = [tag['content'] for tag in tag_elements if 'content' in tag.attrs]
 
         # Viết lại nội dung bằng OpenAI
         rewritten_content = rewrite_content_with_openai(content)
@@ -116,7 +115,7 @@ def upload_image_to_wordpress(image_url, wordpress_url, wp_username, wp_password
         return None
 
 # Hàm tạo bài viết mới trên WordPress
-def create_wordpress_post(title, content, category_id, image_id=None, wp_user=None, wp_password=None):
+def create_wordpress_post(title, content, category_id, image_id=None, wp_user=None, wp_password=None, tags=None):
     try:
         auth_header = {
             'Authorization': 'Basic ' + base64.b64encode(f"{wp_user}:{wp_password}".encode()).decode('utf-8'),
@@ -126,10 +125,14 @@ def create_wordpress_post(title, content, category_id, image_id=None, wp_user=No
         data = {
             'title': title,
             'content': content,
-            'status': 'pending',
-            'categories': [category_id],
-            'tags': tags or []  # Thêm các tag vào đây
+            'status': 'pending',  # Thay đổi trạng thái thành chờ duyệt
+            'categories': [category_id]
         }
+        
+        # Chỉ thêm tags nếu chúng tồn tại
+        if tags:
+            data['tags'] = tags
+
         if image_id:
             data['featured_media'] = image_id
         
@@ -194,7 +197,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not image_id:
                 await update.message.reply_text("Không thể tải ảnh lên WordPress.")
         
-        new_post = create_wordpress_post(article_data['title'], article_data['content'], category_id, image_id, wp_user, wp_password)
+        # Gọi hàm create_wordpress_post với tags
+        new_post = create_wordpress_post(article_data['title'], article_data['content'], category_id, image_id, wp_user, wp_password, article_data['tags'])
+        
         if new_post:
             await update.message.reply_text(f"Bài viết đã được đăng: {new_post.get('link')}")
         else:
