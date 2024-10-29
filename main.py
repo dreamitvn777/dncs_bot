@@ -17,7 +17,7 @@ load_dotenv()
 # Lấy các thông tin từ file .env
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-WORDPRESS_URL = os.getenv("WORDPRESS_URL")
+wordpress_url = os.getenv("WORDPRESS_URL")
 AUTHORS = json.loads(os.getenv("AUTHORS"))
 
 # Tải danh sách danh mục từ JSON
