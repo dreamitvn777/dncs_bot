@@ -5,6 +5,8 @@ import json
 import random
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
+from telegram import Update
+from telegram.ext import ContextTypes
 
 # Tải các biến môi trường từ file .env
 load_dotenv()
