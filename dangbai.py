@@ -73,7 +73,7 @@ def post_to_wordpress(title, content, category_id, tags, author, image_path=None
         return f"Có lỗi xảy ra khi đăng bài: {response.json()}"
 
 # Hàm xử lý khi người dùng bắt đầu đăng bài
-async def dang_bai(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def dangbai(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Xin chào! Vui lòng gửi tiêu đề bài viết.")
 
 # Hàm xử lý tiêu đề
