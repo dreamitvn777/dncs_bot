@@ -49,8 +49,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     message_text = update.message.text
 
     if context.user_data.get('current_action') == 'dangbai':
-        result = dang_bai(message_text)  # Gọi hàm để đăng bài
-        await update.message.reply_text(result)
+        # Gọi hàm dang_bai với cả hai tham số update và context
+        await dang_bai(update, context)  
         context.user_data['current_action'] = None  # Reset action
 
     elif context.user_data.get('current_action') == 'danlai':
