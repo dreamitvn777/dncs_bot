@@ -16,45 +16,62 @@ if TELEGRAM_TOKEN is None:
 
 # Hàm chính khởi chạy bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Xin chào! Sử dụng /dangbai, /danlai, hoặc /postfb để thực hiện chức năng tương ứng.")
+    keyboard = [
+        [InlineKeyboardButton("Đăng Bài", callback_data='dangbai')],
+        [InlineKeyboardButton("Dẫn Lại", callback_data='danlai')],
+        [InlineKeyboardButton("Đăng lên Facebook", callback_data='postfb')],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Xin chào! Vui lòng chọn một chức năng:", reply_markup=reply_markup)
 
-# Hàm xử lý lệnh /dangbai
-async def handle_dangbai(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if context.args:
-        message_text = " ".join(context.args)
+# Hàm xử lý callback từ các nút
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == 'dangbai':
+        await query.edit_message_text(text="Vui lòng nhập nội dung để đăng bài.")
+        return  # Dừng lại để người dùng có thể gửi nội dung
+
+    if query.data == 'danlai':
+        await query.edit_message_text(text="Vui lòng nhập nội dung để dẫn lại.")
+        return  # Dừng lại để người dùng có thể gửi nội dung
+
+    if query.data == 'postfb':
+        await query.edit_message_text(text="Vui lòng nhập link bài viết để đăng lên Facebook.")
+        return  # Dừng lại để người dùng có thể gửi link
+
+# Hàm xử lý tin nhắn từ người dùng
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    message_text = update.message.text
+
+    if context.user_data.get('current_action') == 'dangbai':
         result = dang_bai(message_text)  # Gọi hàm để đăng bài
         await update.message.reply_text(result)
-    else:
-        await update.message.reply_text("Vui lòng cung cấp nội dung để đăng bài.")
+        context.user_data['current_action'] = None  # Reset action
 
-# Hàm xử lý lệnh /danlai
-async def handle_danlai(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if context.args:
-        message_text = " ".join(context.args)
+    elif context.user_data.get('current_action') == 'danlai':
         result = dan_lai(message_text)  # Gọi hàm để dẫn lại
         await update.message.reply_text(result)
-    else:
-        await update.message.reply_text("Vui lòng cung cấp nội dung để dẫn lại.")
+        context.user_data['current_action'] = None  # Reset action
 
-# Hàm xử lý lệnh /postfb
-async def handle_postfb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if context.args:
-        message_text = " ".join(context.args)
+    elif context.user_data.get('current_action') == 'postfb':
         result = post_facebook(message_text)  # Gọi hàm để post lên Facebook
         await update.message.reply_text(result)
+        context.user_data['current_action'] = None  # Reset action
+
     else:
-        await update.message.reply_text("Vui lòng cung cấp link bài viết để đăng lên Facebook.")
+        await update.message.reply_text("Vui lòng sử dụng các nút để chọn chức năng.")
 
 # Hàm khởi chạy bot
 def main():
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     
     # Đăng ký các handler
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("dangbai", handle_dangbai))
-    application.add_handler(CommandHandler("danlai", handle_danlai))
-    application.add_handler(CommandHandler("postfb", handle_postfb))
-    
+    application.add_handler(CallbackQueryHandler(button_handler))  # Xử lý callback từ nút
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))  # Xử lý tin nhắn
+
     # Bắt đầu bot
     application.run_polling()
 
