@@ -1,115 +1,34 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
-import json
-import requests
 import os
+import telebot
 from dotenv import load_dotenv
+from dangbai import dang_bai  # Giả sử bạn có hàm dang_bai trong dangbai.py
+from danlai import dan_lai    # Giả sử bạn có hàm dan_lai trong danlai.py
+from fb import post_facebook   # Giả sử bạn có hàm post_facebook trong fb.py
 
-# Load environment variables
-load_dotenv()
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-WORDPRESS_URL = os.getenv("WORDPRESS_URL")
-AUTHORS = json.loads(os.getenv("AUTHORS"))
-CATEGORIES = json.loads(os.getenv("CATEGORIES"))
+load_dotenv()  # Tải biến môi trường từ file .env
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-# Function to handle 'start' command
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("Đăng bài", callback_data='post_article')],
-        [InlineKeyboardButton("Dẫn lại", callback_data='repost_article')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Chọn một chức năng:", reply_markup=reply_markup)
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-# Function to handle the callback query
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+@bot.message_handler(commands=['dangbai'])
+def handle_dangbai(message):
+    # Gọi hàm để đăng bài
+    result = dang_bai(message.text)
+    bot.reply_to(message, result)
 
-    if query.data == 'post_article':
-        await choose_category(update, context)
-    elif query.data == 'repost_article':
-        await update.callback_query.message.reply_text("Gửi URL của bài viết cần dẫn lại:")
+@bot.message_handler(commands=['danlai'])
+def handle_danlai(message):
+    # Gọi hàm để dẫn lại
+    result = dan_lai(message.text)
+    bot.reply_to(message, result)
 
-# Function to send categories as inline buttons
-async def choose_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton(cat, callback_data=f'cat_{id}')] for cat, id in CATEGORIES.items()]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.message.reply_text("Chọn một danh mục:", reply_markup=reply_markup)
+@bot.message_handler(commands=['postfb'])
+def handle_postfb(message):
+    # Gọi hàm để post lên Facebook
+    result = post_facebook(message.text)
+    bot.reply_to(message, result)
 
-# Function to handle chosen category and ask for article details
-async def handle_category_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    context.user_data['category_id'] = query.data.split('_')[1]  # Save category ID
-    await query.message.reply_text("Gửi tiêu đề của bài viết:")
-
-# Handlers for title, content, and thumbnail image
-async def handle_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['title'] = update.message.text
-    await update.message.reply_text("Gửi nội dung bài viết:")
-
-async def handle_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['content'] = update.message.text
-    await update.message.reply_text("Gửi ảnh để làm ảnh thu nhỏ:")
-
-async def handle_thumbnail(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo_file = await update.message.photo[-1].get_file()
-    photo_data = requests.get(photo_file.file_path).content  # Download the photo data
-    context.user_data['thumbnail'] = photo_data
-    await update.message.reply_text("Đang đăng bài lên WordPress...")
-    post_to_wordpress(update, context)
-
-# Function to post the collected data to WordPress
-def post_to_wordpress(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    title = context.user_data['title']
-    content = context.user_data['content']
-    category_id = context.user_data['category_id']
-    thumbnail = context.user_data['thumbnail']
-
-    # Prepare headers and data for WordPress
-    wp_user = AUTHORS[0]["username"]
-    wp_pass = AUTHORS[0]["password"]
-    headers = {
-        'Authorization': f'Basic {wp_user}:{wp_pass}'
-    }
-    
-    # Upload image as thumbnail (assuming image upload is implemented separately)
-    image_url = upload_image_to_wordpress(thumbnail, headers)
-    
-    # Prepare post data
-    post_data = {
-        'title': title,
-        'content': content,
-        'categories': category_id,
-        'status': 'publish',
-        'featured_media': image_url  # Assuming upload_image_to_wordpress returns image ID
-    }
-
-    # Send post request to WordPress
-    response = requests.post(f"{WORDPRESS_URL}/wp-json/wp/v2/posts", headers=headers, json=post_data)
-    if response.status_code == 201:
-        await update.message.reply_text("Bài viết đã được đăng thành công!")
-    else:
-        await update.message.reply_text("Có lỗi xảy ra khi đăng bài.")
-
-# Image upload function to WordPress
-def upload_image_to_wordpress(image_data, headers):
-    media_endpoint = f"{WORDPRESS_URL}/wp-json/wp/v2/media"
-    headers.update({'Content-Type': 'image/jpeg'})
-    response = requests.post(media_endpoint, headers=headers, data=image_data)
-    if response.status_code == 201:
-        return response.json()['id']  # Image ID used as featured_media in the post
-    else:
-        raise Exception("Failed to upload image")
-
-# Main application setup
-app = Application.builder().token(TELEGRAM_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button))
-app.add_handler(CallbackQueryHandler(handle_category_selection, pattern="^cat_"))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_title))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_content))
-app.add_handler(MessageHandler(filters.PHOTO, handle_thumbnail))
-
-app.run_polling()
+# Chạy bot
+bot.polling()
