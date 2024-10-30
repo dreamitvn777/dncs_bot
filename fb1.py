@@ -3,7 +3,7 @@ import requests
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # Tải biến môi trường từ file .env
 load_dotenv()
@@ -25,23 +25,20 @@ def post_facebook(page_id, message, access_token):
         'message': message,
         'access_token': access_token
     }
-    
+
     response = requests.post(url, data=payload)
-    
+
     if response.status_code == 200:
         print("Đăng bài thành công!")
-        print("ID bài viết:", response.json().get('id'))
+        return response.json().get('id')  # Trả về ID bài viết
     else:
         print("Lỗi khi đăng bài:", response.json())
+        return None
 
-# Hàm bắt đầu bot
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Xin chào! Gửi cho tôi link của bài viết Facebook bạn muốn đăng.')
-
-# Hàm xử lý tin nhắn từ người dùng
-def handle_message(update: Update, context: CallbackContext) -> None:
+# Hàm xử lý khi nhận URL bài viết từ người dùng
+async def handle_facebook_post(update: Update, context: CallbackContext):
     post_url = update.message.text
-    update.message.reply_text('Đang lấy nội dung từ link...')
+    await update.message.reply_text('Đang lấy nội dung từ link...')
 
     # Lấy giá trị từ biến môi trường
     page_id = os.getenv('PAGE_ID')
@@ -49,13 +46,20 @@ def handle_message(update: Update, context: CallbackContext) -> None:
 
     # Lấy nội dung bài viết từ link
     post_content = get_facebook_post_content(post_url)
-    
+
     if post_content:
         # Đăng bài lên Fanpage
-        post_to_facebook_page(page_id, post_content, access_token)
-        update.message.reply_text('Đã đăng bài thành công!')
+        post_id = post_facebook(page_id, post_content, access_token)
+        if post_id:
+            await update.message.reply_text(f'Đã đăng bài thành công! ID bài viết: {post_id}')
+        else:
+            await update.message.reply_text('Có lỗi xảy ra khi đăng bài.')
     else:
-        update.message.reply_text('Không thể lấy nội dung từ link đã cho.')
+        await update.message.reply_text('Không thể lấy nội dung từ link đã cho.')
+
+# Hàm bắt đầu bot
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text('Xin chào! Gửi cho tôi link của bài viết Facebook bạn muốn đăng.')
 
 # Hàm chính
 def main():
@@ -63,18 +67,14 @@ def main():
     telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
 
     # Khởi tạo bot
-    updater = Updater(telegram_bot_token)
-
-    # Lấy dispatcher để đăng ký handler
-    dispatcher = updater.dispatcher
+    application = Application.builder().token(telegram_bot_token).build()
 
     # Đăng ký các handler
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_facebook_post))
 
     # Bắt đầu bot
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
