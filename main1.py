@@ -47,7 +47,7 @@ async def handle_postfb(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 # Hàm khởi chạy bot
 def main():
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
     
     # Đăng ký các handler
     application.add_handler(CommandHandler("start", start))
