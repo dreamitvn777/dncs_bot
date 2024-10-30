@@ -1,16 +1,16 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
 import os
 from dotenv import load_dotenv
 from dangbai import dang_bai  # Giả sử bạn có hàm dang_bai trong dangbai.py
-from danlai1 import dan_lai     # Giả sử bạn có hàm dan_lai trong danlai.py
+from danlai import dan_lai     # Giả sử bạn có hàm dan_lai trong danlai.py
 from fb1 import post_facebook   # Giả sử bạn có hàm post_facebook trong fb1.py
 
 # Tải biến môi trường từ file .env
 load_dotenv()  
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Thay đổi từ TELEGRAM_BOT_TOKEN
 
-# Kiểm tra xem TELEGRAM_BOT_TOKEN có hợp lệ không
+# Kiểm tra xem TELEGRAM_TOKEN có hợp lệ không
 if TELEGRAM_TOKEN is None:
     raise ValueError("TELEGRAM_TOKEN không được thiết lập trong file .env.")
 
@@ -31,14 +31,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if query.data == 'dangbai':
         await query.edit_message_text(text="Vui lòng nhập nội dung để đăng bài.")
+        context.user_data['current_action'] = 'dangbai'  # Ghi nhận hành động hiện tại
         return  # Dừng lại để người dùng có thể gửi nội dung
 
     if query.data == 'danlai':
         await query.edit_message_text(text="Vui lòng nhập nội dung để dẫn lại.")
+        context.user_data['current_action'] = 'danlai'  # Ghi nhận hành động hiện tại
         return  # Dừng lại để người dùng có thể gửi nội dung
 
     if query.data == 'postfb':
         await query.edit_message_text(text="Vui lòng nhập link bài viết để đăng lên Facebook.")
+        context.user_data['current_action'] = 'postfb'  # Ghi nhận hành động hiện tại
         return  # Dừng lại để người dùng có thể gửi link
 
 # Hàm xử lý tin nhắn từ người dùng
@@ -65,7 +68,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # Hàm khởi chạy bot
 def main():
-    application = Application.builder().token(TELEGRAM_TOKEN).build()
+    application = Application.builder().token(TELEGRAM_TOKEN).build()  # Sử dụng TELEGRAM_TOKEN
     
     # Đăng ký các handler
     application.add_handler(CommandHandler("start", start))
