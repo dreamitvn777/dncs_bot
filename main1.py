@@ -4,7 +4,7 @@ import os
 import telebot
 from dotenv import load_dotenv
 from dangbai import dang_bai  # Giả sử bạn có hàm dang_bai trong dangbai.py
-from danlai import dan_lai    # Giả sử bạn có hàm dan_lai trong danlai.py
+from danlai1 import dan_lai    # Giả sử bạn có hàm dan_lai trong danlai.py
 from fb1 import post_facebook   # Giả sử bạn có hàm post_facebook trong fb.py
 
 load_dotenv()  # Tải biến môi trường từ file .env
