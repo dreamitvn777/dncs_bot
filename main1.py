@@ -65,7 +65,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # Hàm khởi chạy bot
 def main():
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = Application.builder().token(TELEGRAM_TOKEN).build()
     
     # Đăng ký các handler
     application.add_handler(CommandHandler("start", start))
