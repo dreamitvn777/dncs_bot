@@ -8,11 +8,11 @@ from fb1 import post_facebook   # Giả sử bạn có hàm post_facebook trong 
 
 # Tải biến môi trường từ file .env
 load_dotenv()  
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # Kiểm tra xem TELEGRAM_BOT_TOKEN có hợp lệ không
-if TELEGRAM_BOT_TOKEN is None:
-    raise ValueError("TELEGRAM_BOT_TOKEN không được thiết lập trong file .env.")
+if TELEGRAM_TOKEN is None:
+    raise ValueError("TELEGRAM_TOKEN không được thiết lập trong file .env.")
 
 # Hàm chính khởi chạy bot
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
